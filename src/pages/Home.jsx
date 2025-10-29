@@ -18,18 +18,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import { Navigation } from "swiper/modules";
 
-/**
- * Composant Home
- * - Utilise BigDataCloud reverse-geocode-client pour obtenir la ville.
- * - Si coords disponibles mais accuracy > ACCURACY_THRESHOLD -> fallback IP.
- * - Si geolocation refusée ou erreur -> fallback IP.
- *
- * Sources : BigDataCloud client-side reverse geocode + guide HackerNoon.
- * https://www.bigdatacloud.com/free-api/free-reverse-geocode-to-city-api
- * https://hackernoon.com/lang/fr/comment-obtenir-l%27emplacement-d%27un-utilisateur-dans-reactjs-un-guide-pratique
- */
-
-const categories = [
+const allCategories = [
   { icon: FaUtensils, label: "Restaurant" },
   { icon: FaBolt, label: "Electricien" },
   { icon: FaSpa, label: "Beauté" },
@@ -41,7 +30,16 @@ const categories = [
   { icon: FaTools, label: "Plombier" },
 ];
 
-const ACCURACY_THRESHOLD_METERS = 5000; // si accuracy > 5km, on considère la position trop imprécise et on fallback IP
+const mobileCategories = [
+  { icon: FaUtensils, label: "Restaurant" },
+  { icon: FaBolt, label: "Electricien" },
+  { icon: FaSpa, label: "Beauté" },
+  { icon: FaCapsules, label: "Pharmacie" },
+  { icon: FaUserMd, label: "Kiné" },
+  { icon: FaTaxi, label: "Taxi" },
+];
+
+const ACCURACY_THRESHOLD_METERS = 5000;
 
 const annonces = [
   {
@@ -98,10 +96,18 @@ const Home = () => {
   const [address, setAddress] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const dropdownRef = useRef(null);
 
-  // appelle BigDataCloud : si latitude/longitude fournis -> reverse geocode,
-  // sinon (sans coords) l'endpoint renverra un fallback basé sur l'IP.
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const fetchCityFromBigDataCloud = async (latitude, longitude) => {
     try {
       const base = "https://api.bigdatacloud.net/data/reverse-geocode-client";
@@ -116,7 +122,6 @@ const Home = () => {
       const res = await fetch(url);
       if (!res.ok) throw new Error("BigDataCloud response not ok");
       const data = await res.json();
-      // data contient city, locality, principalSubdivision, countryName, etc.
       const city = data.city || data.locality || data.principalSubdivision || "";
       const region = data.principalSubdivision || "";
       const country = data.countryName || "";
@@ -132,7 +137,6 @@ const Home = () => {
 
   const handleAroundMe = async () => {
     if (!("geolocation" in navigator)) {
-      // Pas de geolocation : fallback IP via BigDataCloud (appel sans coords)
       setIsLoading(true);
       const ipAddressCity = await fetchCityFromBigDataCloud();
       setAddress(ipAddressCity);
@@ -148,7 +152,6 @@ const Home = () => {
         const { latitude, longitude, accuracy } = pos.coords;
         console.log("GEO success -> lat:", latitude, "lon:", longitude, "accuracy(m):", accuracy);
 
-        // Si accuracy trop grande, on préfère fallback sur IP (BigDataCloud sans coords)
         if (typeof accuracy === "number" && accuracy > ACCURACY_THRESHOLD_METERS) {
           console.warn(`Accuracy ${accuracy}m > ${ACCURACY_THRESHOLD_METERS}m -> fallback IP`);
           const ipCity = await fetchCityFromBigDataCloud();
@@ -158,10 +161,8 @@ const Home = () => {
           return;
         }
 
-        // Sinon on fait reverse-geocode avec coords
         const cityFromCoords = await fetchCityFromBigDataCloud(latitude, longitude);
 
-        // Si réponse vide on tente fallback IP (sécurité)
         if (!cityFromCoords) {
           console.warn("BigDataCloud with coords returned empty -> fallback IP");
           const ipCity = await fetchCityFromBigDataCloud();
@@ -174,7 +175,6 @@ const Home = () => {
         setIsLoading(false);
       },
       async (error) => {
-        // Erreur ou refus : fallback IP via BigDataCloud
         console.error("geolocation error:", error);
         const ipCity = await fetchCityFromBigDataCloud();
         setAddress(ipCity);
@@ -189,7 +189,6 @@ const Home = () => {
     );
   };
 
-  // Fermer le menu si clic à l’extérieur
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -200,36 +199,37 @@ const Home = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const categoriesToShow = isMobile ? mobileCategories : allCategories;
+
   return (
-    <div className="flex flex-col items-center pt-8">
-      <form className="flex w-full max-w-4xl mx-auto mb-10 relative" ref={dropdownRef}>
-        <div className="flex flex-1 bg-white rounded-l-full border border-gray-300">
-          <div className="flex items-center px-4 text-bleu-nuit">
+    <div className="flex flex-col items-center pt-4 md:pt-8 px-4">
+      <div className="flex flex-col md:flex-row w-full max-w-4xl mx-auto mb-6 md:mb-10 gap-2 md:gap-0 relative" ref={dropdownRef}>
+        <div className="flex flex-1 bg-white rounded-full md:rounded-l-full md:rounded-r-none border border-gray-300">
+          <div className="flex items-center px-3 md:px-4 text-bleu-nuit">
             <FaSearch />
           </div>
           <input
             type="text"
             placeholder="De quoi avez-vous besoin ?"
-            className="flex-1 py-3 px-2 outline-none bg-transparent text-gray-700"
+            className="flex-1 py-2 md:py-3 px-2 outline-none bg-transparent text-gray-700 text-sm md:text-base"
           />
         </div>
 
-        <div className="flex flex-1 bg-white border border-gray-300 border-l-0 rounded-r-full relative">
-          <div className="flex items-center px-4 text-bleu-nuit">
+        <div className="flex flex-1 bg-white border border-gray-300 md:border-l-0 rounded-full md:rounded-r-full md:rounded-l-none relative">
+          <div className="flex items-center px-3 md:px-4 text-bleu-nuit">
             <FaMapMarkerAlt />
           </div>
           <input
             type="text"
-            placeholder="Adresse, quartier, ville, département"
-            className="flex-1 py-3 px-2 outline-none bg-transparent text-gray-700"
+            placeholder={isMobile ? "Où ?" : "Adresse, quartier, ville, département"}
+            className="flex-1 py-2 md:py-3 px-2 outline-none bg-transparent text-gray-700 text-sm md:text-base"
             value={address}
             onFocus={() => setShowDropdown(true)}
             onChange={(e) => setAddress(e.target.value)}
           />
 
-          {/* Menu déroulant */}bleu
           {showDropdown && (
-            <ul className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-b-xl shadow-md z-50">
+            <ul className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-b-xl shadow-md z-50 mt-1">
               <li
                 onClick={!isLoading ? handleAroundMe : undefined}
                 className={`px-4 py-2 flex items-center gap-2 cursor-pointer text-sm text-gray-700 ${
@@ -250,30 +250,38 @@ const Home = () => {
         </div>
 
         <button
-          type="submit"
-          className="ml-[-3rem] mt-[0.2rem] rounded-full bg-bleu-nuit w-12 h-12 flex items-center justify-center shadow-lg border border-gray-200 z-10"
+          type="button"
+          className="hidden md:flex ml-[-3rem] mt-[0.2rem] rounded-full bg-bleu-nuit w-12 h-12 items-center justify-center shadow-lg border border-gray-200 z-10"
         >
           <FaSearch className="text-jaune text-xl" />
         </button>
-      </form>
+      </div>
 
-      <div className="flex flex-wrap justify-center gap-10 mt-2">
-        {categories.map((cat) => (
+      <button
+        type="button"
+        className="md:hidden w-full max-w-4xl bg-bleu-nuit text-jaune font-semibold py-3 rounded-full shadow-lg mb-6 flex items-center justify-center gap-2"
+      >
+        <FaSearch className="text-xl" />
+        Rechercher
+      </button>
+
+      <div className="flex flex-wrap justify-center gap-6 md:gap-10 mt-2 mb-6">
+        {categoriesToShow.map((cat) => (
           <div
             key={cat.label}
-            className="flex flex-col items-center min-w-[80px] cursor-pointer group"
+            className="flex flex-col items-center min-w-[70px] md:min-w-[80px] cursor-pointer group"
           >
-            <cat.icon className="text-bleu-nuit text-3xl mb-2 transition-colors group-hover:text-jaune" />
-            <span className="text-bleu-nuit text-sm transition-colors group-hover:text-jaune">
+            <cat.icon className="text-bleu-nuit text-2xl md:text-3xl mb-2 transition-colors group-hover:text-jaune" />
+            <span className="text-bleu-nuit text-xs md:text-sm transition-colors group-hover:text-jaune text-center">
               {cat.label}
             </span>
           </div>
         ))}
       </div>
 
-      <div className="promo-cards w-full max-w-7xl mt-16 px-4 flex flex-row gap-10 overflow-x-auto items-stretch snap-x snap-mandatory scrollbar-hide">
+      <div className="promo-cards w-full max-w-7xl mt-8 md:mt-16 px-4 flex flex-col md:flex-row gap-6 md:gap-10 md:overflow-x-auto items-stretch md:snap-x md:snap-mandatory scrollbar-hide">
         <div
-          className="promo-card relative flex justify-end flex-col gap-4 min-w-[600px] h-[450px] rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-6 snap-start"
+          className="promo-card relative flex justify-end flex-col gap-4 w-full md:min-w-[600px] h-[350px] md:h-[450px] rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-6 md:snap-start"
           style={{
             backgroundImage:
               "url('https://images.unsplash.com/photo-1528901166007-3784c7dd3653?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1740')",
@@ -281,7 +289,7 @@ const Home = () => {
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
           <div className="relative z-10">
-            <h1 className="text-white text-2xl font-bold mb-2">L'Entreprise à la une</h1>
+            <h1 className="text-white text-xl md:text-2xl font-bold mb-2">L'Entreprise à la une</h1>
             <p className="text-white/90 text-sm mb-4">
               Découvrez une entreprise afrocaribéenne qui brille!
             </p>
@@ -294,20 +302,19 @@ const Home = () => {
         </div>
 
         <div
-          className="promo-card relative flex flex-col justify-center items-center min-w-[600px] h-[450px] rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-6 snap-start"
+          className="promo-card relative flex flex-col justify-center items-center w-full md:min-w-[600px] h-[450px] md:h-[450px] rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-6 md:snap-start"
           style={{
             backgroundImage:
               "url('https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=800&h=900&fit=crop')",
           }}
         >
-          {/* Overlay sombre */}
           <div className="absolute inset-0 bg-black/70"></div>
-          <div className="relative z-10 flex flex-col items-center justify-center h-full w-full text-center">
-            <h1 className="text-white text-3xl font-extrabold mb-2">
+          <div className="relative z-10 flex flex-col items-center justify-center h-full w-full text-center px-4">
+            <h1 className="text-white text-lg md:text-3xl font-extrabold mb-2">
               PROFESSIONNELS,<br />RAPPROCHEZ-VOUS DE VOS CLIENTS !
             </h1>
-            <p className="text-white text-base mb-6 max-w-xl">
-              Gérez gratuitement toutes vos informations, vos avis, vos publications et bien plus encore directement depuis notre plateforme 
+            <p className="text-white text-sm md:text-base mb-6 max-w-xl">
+              Gérez vos informations, vos avis, vos publications et bien plus encore directement depuis notre plateforme 
             </p>
             <div className="flex flex-col gap-3 mb-6 w-full max-w-xs">
               <button className="bg-bleu-nuit text-blanc font-semibold py-3 rounded-lg shadow hover:bg-bleu-nuit/80 transition">
@@ -317,7 +324,7 @@ const Home = () => {
                 Je me connecte
               </button>
             </div>
-            <div className="flex justify-center gap-6 mb-4 text-white text-xl">
+            <div className="flex justify-center gap-4 md:gap-6 mb-4 text-white text-lg md:text-xl">
               <span><FaFileInvoice /></span>
               <span><FaTools /></span>  
               <span><FaUserMd /></span>
@@ -331,13 +338,12 @@ const Home = () => {
         </div>
       </div>
 
-
-      <div className="dernieres-annonces w-full max-w-7xl mt-16 px-4">
-        <h2 className="text-2xl font-bold mb-6 text-bleu-nuit">Dernières annonces</h2>
+      <div className="dernieres-annonces w-full max-w-7xl mt-12 md:mt-16 px-4">
+        <h2 className="text-xl md:text-2xl font-bold mb-6 text-bleu-nuit">Dernières annonces</h2>
         <Swiper
           modules={[Navigation]}
           navigation
-          spaceBetween={24}
+          spaceBetween={16}
           slidesPerView={1}
           breakpoints={{
             640: { slidesPerView: 1 },
@@ -369,7 +375,6 @@ const Home = () => {
                     <span>{annonce.date}</span>
                   </div>
                   <h3 className="font-bold text-lg text-bleu-nuit mb-2 line-clamp-3">{annonce.title}</h3>
-                  {/* Ajoutez un bouton ou autre contenu si besoin */}
                 </div>
               </div>
             </SwiperSlide>
@@ -379,104 +384,100 @@ const Home = () => {
           {`
             .swiper-annonces .swiper-button-next,
             .swiper-annonces .swiper-button-prev {
-              color: #1a237e !important; /* bleu nuit */
+              color: #1a237e !important;
             }
           `}
         </style>
       </div>
 
-      {/* Nouvelle section : Votre santé */}
-      <div className="w-full max-w-7xl mx-auto mt-12">
-        <h2 className="text-2xl font-extrabold text-bleu-nuit mb-6">Votre santé</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="w-full max-w-7xl mx-auto mt-12 px-4">
+        <h2 className="text-xl md:text-2xl font-extrabold text-bleu-nuit mb-6">Votre santé</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600" alt="Se soigner au quotidien" className="w-full h-32 object-cover" />
-            <div className="p-4 font-bold text-lg">Se soigner au quotidien</div>
+            <div className="p-4 font-bold text-base md:text-lg">Se soigner au quotidien</div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <img src="https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=600" alt="Spécialités médicales" className="w-full h-32 object-cover" />
-            <div className="p-4 font-bold text-lg">Spécialités médicales</div>
+            <div className="p-4 font-bold text-base md:text-lg">Spécialités médicales</div>
           </div>
         </div>
       </div>
 
-      {/* Nouvelle section : Votre logement */}
-      <div className="w-full max-w-7xl mx-auto mt-12">
-        <h2 className="text-2xl font-extrabold text-bleu-nuit mb-6">Votre logement</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="w-full max-w-7xl mx-auto mt-12 px-4">
+        <h2 className="text-xl md:text-2xl font-extrabold text-bleu-nuit mb-6">Votre logement</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=600" alt="Les travaux de la maison" className="w-full h-32 object-cover" />
-            <div className="p-4 font-bold text-lg">Les travaux de la maison</div>
+            <div className="p-4 font-bold text-base md:text-lg">Les travaux de la maison</div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <img src="https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=600" alt="Equiper la maison" className="w-full h-32 object-cover" />
-            <div className="p-4 font-bold text-lg">Equiper la maison</div>
+            <div className="p-4 font-bold text-base md:text-lg">Equiper la maison</div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <img src="https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=600" alt="Jardins et extérieurs" className="w-full h-32 object-cover" />
-            <div className="p-4 font-bold text-lg">Jardins et extérieurs</div>
+            <div className="p-4 font-bold text-base md:text-lg">Jardins et extérieurs</div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            <img src="https://images.unsplash.com/photo-1528901166007-3784c7dd3653?w=600" alt="L’immobilier" className="w-full h-32 object-cover" />
-            <div className="p-4 font-bold text-lg">L’immobilier</div>
+            <img src="https://images.unsplash.com/photo-1528901166007-3784c7dd3653?w=600" alt="L'immobilier" className="w-full h-32 object-cover" />
+            <div className="p-4 font-bold text-base md:text-lg">L'immobilier</div>
           </div>
         </div>
       </div>
 
-      {/* Nouvelle section : Vos commerces de proximité */}
-      <div className="w-full max-w-7xl mx-auto mt-12 mb-12">
-        <h2 className="text-2xl font-extrabold text-bleu-nuit mb-6">Vos commerces de proximité</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="w-full max-w-7xl mx-auto mt-12 mb-12 px-4">
+        <h2 className="text-xl md:text-2xl font-extrabold text-bleu-nuit mb-6">Vos commerces de proximité</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <img src="https://images.unsplash.com/photo-1521791136064-7986c2920216?w=600" alt="Les bons restos" className="w-full h-32 object-cover" />
-            <div className="p-4 font-bold text-lg">Les bons restos</div>
+            <div className="p-4 font-bold text-base md:text-lg">Les bons restos</div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <img src="https://images.unsplash.com/photo-1464983953574-0892a716854b?w=600" alt="Sorties" className="w-full h-32 object-cover" />
-            <div className="p-4 font-bold text-lg">Sorties</div>
+            <div className="p-4 font-bold text-base md:text-lg">Sorties</div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <img src="https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=600" alt="Shopping" className="w-full h-32 object-cover" />
-            <div className="p-4 font-bold text-lg">Shopping</div>
+            <div className="p-4 font-bold text-base md:text-lg">Shopping</div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <img src="https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=600" alt="Cuisiner de bons repas" className="w-full h-32 object-cover" />
-            <div className="p-4 font-bold text-lg">Cuisiner de bons repas</div>
+            <div className="p-4 font-bold text-base md:text-lg">Cuisiner de bons repas</div>
           </div>
         </div>
       </div>
            
-      <div className="lpa-promo w-full max-w-7xl mt-20 px-4">
-        <h1 className="text-3xl font-extrabold text-center mb-10 text-bleu-nuit">
+      <div className="lpa-promo w-full max-w-7xl mt-12 md:mt-20 px-4">
+        <h1 className="text-2xl md:text-3xl font-extrabold text-center mb-10 text-bleu-nuit">
           Avec les Pages AfroCarib, rencontrez le pro qu'il vous faut !
         </h1>
-        <div className="lpa-promo-cards grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-          <div className="lpa-promo-card bg-white rounded-2xl shadow-lg p-8 flex flex-col items-center text-center">
-            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f50d.svg" alt="loupe" className="w-20 h-20 mb-4" />
-            <h2 className="font-bold text-lg mb-2 text-bleu-nuit">La référence des pros en France</h2>
+        <div className="lpa-promo-cards grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+          <div className="lpa-promo-card bg-white rounded-2xl shadow-lg p-6 md:p-8 flex flex-col items-center text-center">
+            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f50d.svg" alt="loupe" className="w-16 h-16 md:w-20 md:h-20 mb-4" />
+            <h2 className="font-bold text-base md:text-lg mb-2 text-bleu-nuit">La référence des pros en France</h2>
             <p className="text-gray-600 text-sm">95% des professionnels inscrits, partout en France</p>
           </div>
-          <div className="lpa-promo-card bg-white rounded-2xl shadow-lg p-8 flex flex-col items-center text-center">
-            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4e3.svg" alt="megaphone" className="w-20 h-20 mb-4" />
-            <h2 className="font-bold text-lg mb-2 text-bleu-nuit">Les informations enrichies par les professionnels...</h2>
+          <div className="lpa-promo-card bg-white rounded-2xl shadow-lg p-6 md:p-8 flex flex-col items-center text-center">
+            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4e3.svg" alt="megaphone" className="w-16 h-16 md:w-20 md:h-20 mb-4" />
+            <h2 className="font-bold text-base md:text-lg mb-2 text-bleu-nuit">Les informations enrichies par les professionnels...</h2>
             <p className="text-gray-600 text-sm">Horaires, prestations, actus, coordonnées, itinéraire...<br />100 000 mises à jour quotidiennes</p>
           </div>
-          <div className="lpa-promo-card bg-white rounded-2xl shadow-lg p-8 flex flex-col items-center text-center">
-            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/2b50.svg" alt="star" className="w-20 h-20 mb-4" />
-            <h2 className="font-bold text-lg mb-2 text-bleu-nuit">Des recommandations pour décider</h2>
-            <p className="text-gray-600 text-sm">18 M d’avis et notes des utilisateurs, photos, labels qualité, badges et certifications...</p>
+          <div className="lpa-promo-card bg-white rounded-2xl shadow-lg p-6 md:p-8 flex flex-col items-center text-center">
+            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/2b50.svg" alt="star" className="w-16 h-16 md:w-20 md:h-20 mb-4" />
+            <h2 className="font-bold text-base md:text-lg mb-2 text-bleu-nuit">Des recommandations pour décider</h2>
+            <p className="text-gray-600 text-sm">18 M d'avis et notes des utilisateurs, photos, labels qualité, badges et certifications...</p>
           </div>
-          <div className="lpa-promo-card bg-white rounded-2xl shadow-lg p-8 flex flex-col items-center text-center">
-            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4bb.svg" alt="ordinateur" className="w-20 h-20 mb-4" />
-            <h2 className="font-bold text-lg mb-2 text-bleu-nuit">Des services en ligne pour vous faciliter la vie</h2>
+          <div className="lpa-promo-card bg-white rounded-2xl shadow-lg p-6 md:p-8 flex flex-col items-center text-center">
+            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4bb.svg" alt="ordinateur" className="w-16 h-16 md:w-20 md:h-20 mb-4" />
+            <h2 className="font-bold text-base md:text-lg mb-2 text-bleu-nuit">Des services en ligne pour vous faciliter la vie</h2>
             <p className="text-gray-600 text-sm">Demande de devis, prise de rendez-vous, réservation, messagerie...</p>
           </div>
         </div>
       </div>
 
-      
-      <div className="w-full max-w-7xl mx-auto flex flex-col items-center mt-16 mb-8">
-        <h2 className="text-2xl md:text-3xl font-extrabold text-center text-bleu-nuit mb-6">
+      <div className="w-full max-w-7xl mx-auto flex flex-col items-center mt-16 mb-8 px-4">
+        <h2 className="text-xl md:text-2xl lg:text-3xl font-extrabold text-center text-bleu-nuit mb-6">
           Les Pages Afrocarib, fait par <span className="font-extrabold">nous</span>, pour  <span className="font-extrabold">vous</span>, mais surtout avec <span className="font-extrabold">vous</span>.
         </h2>
         <button
@@ -485,9 +486,7 @@ const Home = () => {
           Consulter notre actualité
         </button>
       </div>
-
     </div>
-
   );
 };
 
