@@ -1,0 +1,172 @@
+/* Imports */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
+
+/* ROOT VARIABLES */
+:root {
+  /* Couleurs principales */
+  --noir: #1f1f1f;
+  --bleu-nuit: #04014b;
+  --bleu-foncé: #04014b;
+  --bleu: #04014b;
+  --orange: #DA6220;
+  --jaune: #F7cb2d;
+  --rose-pale: #fbfcf5;
+  --blanc: #ffffff;
+
+  /* Typographies */
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-display: 'DM Sans', sans-serif;
+
+  /* Tailles de base */
+  --font-body: 18px;
+}
+
+/* RESET DE BASE */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%; /* 16px */
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-body);
+  color: var(--noir);
+  background-color: var(--blanc);
+  line-height: 1.6;
+}
+
+/* TYPOGRAPHIE */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--bleu-nuit);
+}
+
+h1 {
+  font-size: 40px;
+}
+h2 {
+  font-size: 32px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 20px;
+}
+
+p {
+  font-size: var(--font-body);
+  font-family: var(--font-sans);
+}
+
+/* RESPONSIVE TYPOGRAPHIE */
+@media (min-width: 768px) {
+  h1 {
+    font-size: 48px;
+  }
+  h2 {
+    font-size: 40px;
+  }
+  h3 {
+    font-size: 30px;
+  }
+  h4 {
+    font-size: 22px;
+  }
+}
+
+@media (min-width: 1024px) {
+  h1 {
+    font-size: 56px;
+  }
+  h2 {
+    font-size: 45px;
+  }
+  h3 {
+    font-size: 34px;
+  }
+  h4 {
+    font-size: 24px;
+  }
+}
+
+/* UTILITAIRES COULEUR */
+.bg-primary { background-color: var(--bleu-nuit); }
+.bg-secondary { background-color: var(--jaune); }
+.bg-accent { background-color: var(--orange); }
+
+.text-primary { color: var(--bleu-nuit); }
+.text-secondary { color: var(--jaune); }
+.text-accent { color: var(--orange); }
+
+.text-light { color: var(--blanc); }
+.text-dark { color: var(--noir); }
+
+/* BOUTONS */
+.button {
+  font-family: var(--font-sans);
+  padding: 1rem 1.75rem; /* increased for larger forms */
+  border: none;
+  border-radius: 8px;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.button-primary {
+  background-color: var(--bleu);
+  color: var(--blanc);
+}
+
+.button-primary:hover {
+  background-color: var(--bleu-foncé);
+}
+
+.button-accent {
+  background-color: var(--orange);
+  color: var(--blanc);
+}
+
+.button-accent:hover {
+  background-color: #c14f15;
+}
+
+/* LIENS */
+a {
+  color: var(--bleu);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* FORM-SCALE HELPERS */
+.form-large input,
+.form-large textarea,
+.form-large select {
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: transparent;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-large .button {
+  padding: 1rem 1.25rem;
+  font-size: 1.05rem;
+  border-radius: 8px;
+}
